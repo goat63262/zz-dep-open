@@ -1,10 +1,15 @@
 pull_request_rules:
-  - name: zz-fork-probe (observe from-fork evaluation)
+  - name: dep-condition-probe
     conditions:
       - base = main
-      - label = zz-forkprobe
-      - -from-fork
+      - depends-on = TARGETDEP
     actions:
       label:
         add:
-          - zz-treated-as-internal
+          - dep-listed
+  - name: attempt-merge
+    conditions:
+      - base = main
+    actions:
+      merge:
+        method: merge
