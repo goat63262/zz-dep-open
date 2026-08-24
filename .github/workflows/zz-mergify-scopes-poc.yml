@@ -1,0 +1,38 @@
+name: zz-mergify-scopes-poc
+on:
+  pull_request:
+jobs:
+  detect-scopes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Seed a victim file that the build depends on
+        run: |
+          printf 'CRITICAL_CI_CONFIG=true\n' > ci_gate.conf
+          echo "BEFORE: $(cat ci_gate.conf)"
+      - name: Get git refs (Mergify documented step)
+        id: refs
+        uses: Mergifyio/gha-mergify-ci@v25
+        with:
+          action: scopes-git-refs
+      - name: Show what Mergify put in the step outputs
+        run: |
+          echo "base=[${{ steps.refs.outputs.base }}]"
+          echo "head=[${{ steps.refs.outputs.head }}]"
+      - name: Get scopes (Mergify documented consumption)
+        env:
+          BASE: ${{ steps.refs.outputs.base }}
+          HEAD: ${{ steps.refs.outputs.head }}
+        run: |
+          changed=$(git diff --name-only --diff-filter=ACMR "$BASE" "$HEAD" | tr '\n' ' ')
+          echo "changed=[$changed]"
+      - name: Did the victim file survive?
+        run: |
+          echo "AFTER : $(cat ci_gate.conf)"
+          if grep -q CRITICAL_CI_CONFIG ci_gate.conf; then
+            echo "RESULT: intact"
+          else
+            echo "RESULT: *** VICTIM FILE OVERWRITTEN BY THE PULL REQUEST ***"
+          fi
