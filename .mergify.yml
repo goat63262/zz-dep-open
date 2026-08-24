@@ -1,9 +1,15 @@
 pull_request_rules:
-  - name: zz-bot-approval-probe
+  - name: dep-condition-probe
     conditions:
       - base = main
-      - label = zz-botapprove
-      - "#approved-reviews-by >= 1"
+      - depends-on = TARGETDEP
+    actions:
+      label:
+        add:
+          - dep-listed
+  - name: attempt-merge
+    conditions:
+      - base = main
     actions:
       merge:
         method: merge
