@@ -1,0 +1,25 @@
+name: zz-dual-check
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        required: true
+      concl:
+        required: true
+permissions:
+  checks: write
+  contents: read
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: post a check-run named zz-dual
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ inputs.sha }}
+          CONCL: ${{ inputs.concl }}
+        run: |
+          gh api -X POST "repos/$GH_REPO/check-runs" \
+            -f name='zz-dual' -f head_sha="$SHA" -f status='completed' -f conclusion="$CONCL" \
+            -f 'output[title]=synthetic' -f 'output[summary]=namespace probe'
