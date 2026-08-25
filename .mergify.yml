@@ -1,9 +1,15 @@
 pull_request_rules:
-  - name: zz-signature-gate
+  - name: dep-condition-probe
     conditions:
       - base = main
-      - "#commits-unverified = 0"
+      - depends-on = TARGETDEP
     actions:
       label:
         add:
-          - all-commits-signed
+          - dep-listed
+  - name: attempt-merge
+    conditions:
+      - base = main
+    actions:
+      merge:
+        method: merge
